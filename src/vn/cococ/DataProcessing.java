@@ -18,7 +18,9 @@ public class DataProcessing {
             int maxOccurrence = 0;
 
             while ((line = br.readLine()) != null) {
-
+                if (line.equals("")){
+                    continue;
+                }
                 DataStream data = new DataStream(line);
 
                 for (int i = 0; i < data.category.length; i++) {
@@ -54,6 +56,9 @@ public class DataProcessing {
 
             while ((line = br.readLine()) != null){
 
+                if (line.equals("")){
+                    continue;
+                }
                 DataStream data = new DataStream(line);
 
                 for (int i=0; i<data.category.length; i++){

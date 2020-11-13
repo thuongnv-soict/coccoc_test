@@ -68,6 +68,9 @@ public class Algorithm {
 
             // Read each line
             while ((line = br.readLine()) != null){
+                if (line.equals("")){
+                    continue;
+                }
                 DataStream data = new DataStream(line);
                 splitData.add(data);
                 count++;
@@ -128,7 +131,7 @@ public class Algorithm {
                     break;
                 }
             }
-
+            System.out.println("Successfully create file having sorted object_id: "+ sortedFile);
             // Close files
             for (BufferedReader br: brs){
                 br.close();
