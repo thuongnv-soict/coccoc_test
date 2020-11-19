@@ -17,16 +17,16 @@ class DataStreamInSplitFile extends DataStream{
     }
 }
 public class Algorithm {
-    public static void generateFile(List<DataStream> list, String filename){
+    public static void generateFile(List<DataStream> list, String outputFilePath){
         try {
-            FileWriter myWriter = new FileWriter(filename);
+            FileWriter myWriter = new FileWriter(outputFilePath);
             for (DataStream item: list){
                 myWriter.write(item.toString());
                 myWriter.write("\n");
             }
 
             myWriter.close();
-            System.out.println("Successfully write "+ filename);
+            System.out.println("Successfully write "+ outputFilePath);
         } catch (IOException e) {
             System.out.println("An error occurred.");
             e.printStackTrace();
@@ -34,32 +34,12 @@ public class Algorithm {
     }
 
     /*
-        Get index of DataStream has smallest orderId in a list
+        Compare two Data Stream objects by their objectId.
+        Parameter 'sortedBy' stand for comparing by 'String' or 'int'
+        a > b: return 1
+        a = b: return 0
+        a < b: return -1
      */
-    public static int getMinIndex(List<DataStreamInSplitFile> list){
-        DataStreamInSplitFile minItem = list.get(0);
-        int minIndex = 0;
-
-        for (int i=1; i<list.size(); i++){
-            if (list.get(i) != null) {
-                if (minItem == null){
-                    minItem = list.get(i);
-                    minIndex = i;
-                }
-                else if (list.get(i).objectId.compareTo(minItem.objectId) < 0) {
-                    minItem = list.get(i);
-                    minIndex = i;
-                }
-            }
-        }
-
-        if (minItem == null){
-            return -1;
-        }
-
-        return minIndex;
-    }
-
     public static int compare(DataStreamInSplitFile a, DataStreamInSplitFile b, String sortedBy){
         if (sortedBy.equals("String")){
             return a.getOrderIdAsString().compareTo(b.getOrderIdAsString());
@@ -67,38 +47,43 @@ public class Algorithm {
         return a.getOrderIdAsInteger().compareTo(b.getOrderIdAsInteger());
     }
 
-
-    public static void addNewData(List<DataStreamInSplitFile> ordered_list,
+    /*
+        Add new object to ordered list,
+        Time complexity: O(log(n))
+     */
+    public static void addNewData(List<DataStreamInSplitFile> orderedList,
                                   DataStreamInSplitFile newData,
                                   String sortedBy){
-        int first = 0;
-        int last = ordered_list.size() - 1;
-        System.out.println(ordered_list.size());
-        if (ordered_list.size() == 0)
-            ordered_list.add(newData);
+        // In case orderedList is empty
+        if (orderedList.size() == 0)
+            orderedList.add(newData);
         else{
+            int first = 0;
+            int last = orderedList.size() - 1;
             while (last - first > 1){
                 int mid = (last+first) / 2;
 
-                if (compare(newData, ordered_list.get(mid), sortedBy) <= 0){
+                if (compare(newData, orderedList.get(mid), sortedBy) <= 0){
                     last = mid;
-                }else{
+                } else {
                     first = mid;
                 }
             }
 
-            // Insert new
-            if (compare(newData, ordered_list.get(first), sortedBy) <= 0){
-                ordered_list.add(first, newData);
-            }else{
-                ordered_list.add(first + 1, newData);
+            // Insert new object
+            if (compare(newData, orderedList.get(first), sortedBy) <= 0){
+                orderedList.add(first, newData);
+            } else if (compare(newData, orderedList.get(last), sortedBy) >= 0){
+                orderedList.add(last + 1, newData);
+            } else {
+                orderedList.add(first + 1, newData);
             }
         }
 
     }
 
     /*
-        Split large file into multiple smaller file. Each file not exceed maxLine lines
+        Split large file into multiple smaller file. Each file will not exceed 'maxLine' lines
      */
     public static void splitFile(String sourceFile, String destinationFolder, int maxLine, String sortedBy){
         try {
@@ -149,11 +134,15 @@ public class Algorithm {
 
         // Walk through all files in destinationFolder
         try (Stream<Path> paths = Files.walk(Paths.get(destinationFolder))) {
+            // Get list of path to files in a folder
             List<String> splitFilePaths = paths.filter(Files::isRegularFile)
                     .map(Path::toString).collect(Collectors.toList());
 
             List<BufferedReader> brs = new ArrayList<>();
+            BufferedWriter bw = new BufferedWriter(new FileWriter(sortedFile));
             List<DataStreamInSplitFile> cache = new ArrayList<>();
+
+            // Initialize buffer readers and 'cache' - a list contains all first record in each file
             for (int i=0; i<splitFilePaths.size(); i++){
                 BufferedReader br = new BufferedReader(new FileReader(splitFilePaths.get(i)));
                 String line = br.readLine();
@@ -163,34 +152,39 @@ public class Algorithm {
                 brs.add(br);
             }
 
+            // Sort 'cache' to easy when getting smallest object and inserting new object
             if (sortedBy.equals("String"))
                 cache.sort(Comparator.comparing(DataStreamInSplitFile::getOrderIdAsString));
             if (sortedBy.equals("int"))
                 cache.sort(Comparator.comparing(DataStreamInSplitFile::getOrderIdAsInteger));
 
-            for (DataStreamInSplitFile data: cache){
-                System.out.print(data.objectId + "\t");
+            for (DataStreamInSplitFile c: cache){
+                System.out.println(c.objectId);
             }
-            System.out.println();
-            BufferedWriter bw = new BufferedWriter(new FileWriter(sortedFile));
+
+
             while (true){
-                // Get and remove min Data
                 if (cache.size() > 0){
-                    DataStreamInSplitFile minData = cache.remove(0);
+                    // Get and remove object has smallest orderId in 'cache'
+                    DataStreamInSplitFile smallestData = cache.remove(0);
 
-                    bw.write(minData.toString());
+//                    System.out.println(smallestData.file);
 
+                    // Write smallestData in output file
+                    bw.write(smallestData.toString());
                     bw.newLine();
-                    String line = brs.get(minData.file).readLine();
+
+                    // Insert new object from the file which have the above removed object to 'cache'
+                    String line = brs.get(smallestData.file).readLine();
                     if (line != null && !line.equals("")){
-                        addNewData(cache, new DataStreamInSplitFile(line, minData.file), sortedBy);
+                        addNewData(cache, new DataStreamInSplitFile(line, smallestData.file), sortedBy);
                     }
-//                    System.out.println(cache.size());
                 } else {
                     break;
                 }
             }
             System.out.println("Successfully create file having sorted object_id: "+ sortedFile);
+
             // Close files
             for (BufferedReader br: brs){
                 br.close();
@@ -202,39 +196,53 @@ public class Algorithm {
         }
     }
 
+    public static void sortFileByObjectId(String sourceFile, String outputFolder, int maxLine, String sortedBy){
+        // Validate 'sortedBy'
+        if (!sortedBy.equals("String") && !sortedBy.equals("int")){
+            System.out.println("sortedBy must be \"String\" or \"int\"");
+            System.exit(1);
+        }
+
+        String destinationFolderForSplitFile = "split_data_" + sortedBy;
+
+        // Creating the destinationFolder
+        File splitFile = new File(destinationFolderForSplitFile);
+        if (!splitFile.exists()){
+            boolean bool = splitFile.mkdir();
+            if(bool){
+                System.out.println("Directory " + destinationFolderForSplitFile + " created successfully");
+            }else{
+                System.out.println("Sorry couldn't create specified directory");
+            }
+        }
+
+        // Creating the output folder
+        File outputFile = new File(outputFolder);
+        if (!outputFile.exists()){
+            boolean bool = outputFile.mkdir();
+            if(bool){
+                System.out.println("Directory " + outputFile + " created successfully");
+            }else{
+                System.out.println("Sorry couldn't create specified directory");
+            }
+        }
+
+        String outputFileName = "output/sortedBy_"+sortedBy+".txt";
+        splitFile(sourceFile, destinationFolderForSplitFile, maxLine, sortedBy);
+        combineFile(destinationFolderForSplitFile, outputFileName, sortedBy);
+
+    }
 
     public static void main(String[] args) {
         int maxLine = 20000;
         String sourceFile = "data/hash_catid_count.csv";
-        String destinationFolder = "split_data_string";
-        String sortedFile = "data/hash_catid_count_string_sorted.csv";
+        String outputFolder = "output";
 
-        String sortedBy = "String";
+        // Test when comparing objectId by 'String'
+//        sortFileByObjectId(sourceFile, outputFolder, maxLine, "String");
 
-        // Split file
-//        splitFile(sourceFile, destinationFolder, maxLine, sortedBy);
+        // Test when comparing objectId by 'int'
+        sortFileByObjectId(sourceFile, outputFolder, maxLine, "int");
 
-        // Combine file
-        combineFile(destinationFolder, sortedFile, sortedBy);
-
-//        System.out.println(Integer.compare(9, 10));
-
-//        int x = 6;
-//        int[] arr = {1, 3, 4, 5, 6, 8, 9, 11, 12};
-//        int first = 0;
-//        int last = arr.length - 1;
-//        int mid = 0;
-//        while (last - first != 1){
-//            mid = (last+first)/2;
-//
-//            if (x > arr[mid])
-//                first = mid;
-//            else
-//                last = mid;
-//            System.out.println(first + " - " +  last);
-//
-//        }
-//        System.out.println(first + " - " +  last);
-//
     }
 }

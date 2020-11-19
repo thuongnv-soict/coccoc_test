@@ -16,5 +16,7 @@ build/
 config.py
 
 test.py
-
-resource/*
+out/*
+output/*
+split_data_int/*
+split_data_String/*
