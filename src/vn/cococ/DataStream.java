@@ -1,5 +1,6 @@
 package vn.cococ;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 
 public class DataStream {
@@ -14,12 +15,16 @@ public class DataStream {
         String[] occurrence = partition[2].substring(1, partition[2].length()-1).split(",");
         this.occurrence = new int[this.category.length];
         for (int i=0; i<occurrence.length; i++){
-            this.occurrence[i] = Integer.parseInt(occurrence[i]);
+            this.occurrence[i] =  Integer.parseInt(occurrence[i]);
         }
     }
 
-    public String getOrderId(){
-        return objectId;
+    public String getOrderIdAsString(){
+        return this.objectId;
+    }
+
+    public BigInteger getOrderIdAsInteger(){
+        return new BigInteger(this.objectId);
     }
 
     public String toString(){
