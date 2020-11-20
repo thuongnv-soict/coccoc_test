@@ -158,17 +158,10 @@ public class Algorithm {
             if (sortedBy.equals("int"))
                 cache.sort(Comparator.comparing(DataStreamInSplitFile::getOrderIdAsInteger));
 
-            for (DataStreamInSplitFile c: cache){
-                System.out.println(c.objectId);
-            }
-
-
             while (true){
                 if (cache.size() > 0){
                     // Get and remove object has smallest orderId in 'cache'
                     DataStreamInSplitFile smallestData = cache.remove(0);
-
-//                    System.out.println(smallestData.file);
 
                     // Write smallestData in output file
                     bw.write(smallestData.toString());
@@ -183,7 +176,7 @@ public class Algorithm {
                     break;
                 }
             }
-            System.out.println("Successfully create file having sorted object_id: "+ sortedFile);
+            System.out.println("Successfully create file having sorted objectId: "+ sortedFile);
 
             // Close files
             for (BufferedReader br: brs){
@@ -239,7 +232,7 @@ public class Algorithm {
         String outputFolder = "output";
 
         // Test when comparing objectId by 'String'
-//        sortFileByObjectId(sourceFile, outputFolder, maxLine, "String");
+        sortFileByObjectId(sourceFile, outputFolder, maxLine, "String");
 
         // Test when comparing objectId by 'int'
         sortFileByObjectId(sourceFile, outputFolder, maxLine, "int");
